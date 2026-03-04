@@ -1537,92 +1537,6 @@ async function StartModel(dataset, numMerges, EmbedSize, hiddenSize, epochs=3, l
 }
 
 
-class ModelManager {
-  constructor() {}
-
-  async saveModel(name, mlpObj, nlpObj, embedObj, config) {
-    const modelData = {
-      config: config, // { embedSize, hiddenSize, vocabSize }
-      nlp: {
-        tokenToId: nlpObj.tokenToId,
-        idToToken: nlpObj.idToToken,
-        merges: nlpObj.merges
-      }
-    };
-    const flatten = (arr) => {
-        if (!arr) return new Float32Array(0);
-        if (Array.isArray(arr[0]) || arr[0] instanceof Float32Array) {
-            return new Float32Array(arr.flat());
-        }
-        return new Float32Array(arr);
-    };
-
-    const weights = [
-        flatten(mlpObj.w1), flatten(mlpObj.b1),
-        flatten(mlpObj.w2), flatten(mlpObj.b2),
-        flatten(embedObj.tokenEmbed)
-    ];
-
-    const totalLength = weights.reduce((acc, w) => acc + w.length, 0);
-    const weightsBinary = new Float32Array(totalLength);
-    let offset = 0;
-    weights.forEach(w => {
-        weightsBinary.set(w, offset);
-        offset += w.length;
-    });
-    const finalPackage = {
-        meta: modelData,
-        weights: Array.from(weightsBinary)
-    };
-
-    const blob = new Blob([JSON.stringify(finalPackage)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name + '.airbin';
-    a.click();
-  }
-
-  async loadModel(file) {
-    try {
-      const response = await fetch(file);
-      const packageData = await response.json();
-      const { meta, weights } = packageData;
-      const data = new Float32Array(weights);
-      let offset = 0;
-      const { embedSize, hiddenSize, vocabSize } = meta.config;
-      const nlp = new NLP();
-      nlp.tokenToId = meta.nlp.tokenToId;
-      nlp.idToToken = meta.nlp.idToToken;
-      nlp.merges = meta.nlp.merges;
-      const mlp = new MLP(embedSize, hiddenSize, vocabSize);
-      mlp.w1 = [];
-      for (let i = 0; i < hiddenSize; i++) {
-        mlp.w1.push(data.slice(offset, offset + embedSize));
-        offset += embedSize;
-      }
-      mlp.b1 = Array.from(data.slice(offset, offset + hiddenSize));
-      offset += hiddenSize;
-      mlp.w2 = [];
-      for (let i = 0; i < vocabSize; i++) {
-        mlp.w2.push(data.slice(offset, offset + hiddenSize));
-        offset += hiddenSize;
-      }
-      mlp.b2 = Array.from(data.slice(offset, offset + vocabSize));
-      offset += vocabSize;
-      const embed = new EmbeddingLayer(vocabSize, embedSize);
-      embed.tokenEmbed = [];
-      for (let i = 0; i < vocabSize; i++) {
-        embed.tokenEmbed.push(Array.from(data.slice(offset, offset + embedSize)));
-        offset += embedSize;
-      }
-      return { mlp, nlp, embed, config: meta.config };
-
-    } catch (e) {
-      console.error("Model load error:", e);
-    }
-  }
-}
 
 (async () => {
   const device = await ensureGPU();
@@ -1645,3 +1559,4 @@ class ModelManager {
   console.log("Aira:", response);
 
 })();
+
