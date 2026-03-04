@@ -1628,9 +1628,9 @@ class ModelManager {
   const device = await ensureGPU();
   const embedSize = 128
   const hiddenSize = 256
-  const trainedModel = await StartModel("http://127.0.0.1:5500/datasets/test_mini_ds.txt", 500, embedSize, hiddenSize, 3, 0.0003);
-  const usrprompt = "Merhaba, nasılsın?";
-  debug = true
+  const trainedModel = await StartModel("http://127.0.0.1:5500/datasets/en_daily_dialog_ds.txt", 500, embedSize, hiddenSize, 3, 0.0003);
+  const usrprompt = "Hello";
+  debug = false
   const mha = new MHA(device,embedSize,3)
   const layernorm = new LayerNorm(embedSize)
   const response = await generateReply(
@@ -1643,4 +1643,5 @@ class ModelManager {
   );
   
   console.log("Aira:", response);
+
 })();
