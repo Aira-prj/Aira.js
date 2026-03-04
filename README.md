@@ -1,5 +1,5 @@
 # Aira.js-Beta
-![Aira Snowy Owl](aira.png)
+![Aira Snowy Owl](images/aira.png)
 ### Aira is a WebGPU-based artificial intelligence library built on a GPT-style architecture, written completely from scratch.
 
 By running on the GPU, it delivers performance optimizations for tensor operations and training loops.
@@ -8,11 +8,11 @@ By running on the GPU, it delivers performance optimizations for tensor operatio
 **- Intel® HD Graphics 630**:
 
  **- 221 lines dataset, 128 hidden, 64 embedSize, 3 epochs, learning rate 0.003**
-    ![inteltest](inteltest.png)
+    ![inteltest](images/inteltest.png)
 **- Nvidia GeForce GTX 1050 Mobile**:
 
    **- 221 lines dataset, 128 hidden, 64 embedSize, 3 epochs, learning rate 0.003**
-   ![1050test](1050test.png)
+   ![1050test](images/1050test.png)
 
 ## Features
 
