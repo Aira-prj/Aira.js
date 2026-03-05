@@ -514,7 +514,7 @@ class MLP {
       
     }
     
-    const h = await relu(hpre)
+    const h = await geLu(hpre)
 
     let logits
     if(device) {
@@ -547,7 +547,7 @@ class MLP {
       for(let j=0;j<this.outputSize;j++) s+=this.w2[j][i]*dlogits[j]
       dh[i] = s
     } 
-    const drelu = await reluDeriv(hpre)
+    const drelu = await geLuDeriv(hpre)
     const dhpre = dh.map((v,i)=>v*drelu[i])
 
     let gradW1
@@ -573,7 +573,7 @@ class MLP {
     const device = await ensureGPU()
     if (!device) throw new Error("Device not found")
     const hpre = (await matVecMul(device, this.w1, x)).map((v, i) => v + this.b1[i])
-    const h = (await relu(hpre))
+    const h = (await geLu(hpre))
     const logits = await matVecMul(device, this.w2, h)
     const probs = softmax(logits)
     const pairs = probs.map((p, i) => ({ i, p })).sort((a, b) => b.p - a.p)
@@ -1559,4 +1559,5 @@ async function StartModel(dataset, numMerges, EmbedSize, hiddenSize, epochs=3, l
   console.log("Aira:", response);
 
 })();
+
 
