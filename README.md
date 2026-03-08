@@ -30,7 +30,7 @@ Training Loop: Training an MLP model on data with loss tracking
 
 Sampling: Top-K and Top-P sampling, repeat penalty, and temperature control
 
-**Model Manager Early Development**
+Model Management, Saving and Loading Models
 
 ## Hardware Requirements
 
