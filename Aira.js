@@ -1520,44 +1520,94 @@ async function generateReply(mha, mlp, layernorm, nlp, embedding, prompt, {
   return text
 }
 
-async function StartModel(dataset, numMerges, EmbedSize, hiddenSize, epochs=3, lr=0.01) {
-  const device = await ensureGPU();
-  const data = await loadDataset(dataset);
-  const nlp = new NLP();
-  nlp.train(data,numMerges)
-  const vocabSize = Object.keys(nlp.tokenToId).length;
-  if (vocabSize === 0) {
-    throw new Error("Vocab is not created.");
+class ModelManager {
+  constructor() {}
+
+  async saveModel(name, mlpObj, nlpObj, embedObj, config) {
+    const modelData = {
+      config: config, // { embedSize, hiddenSize, vocabSize }
+      nlp: {
+        tokenToId: nlpObj.tokenToId,
+        idToToken: nlpObj.idToToken,
+        merges: nlpObj.merges
+      }
+    };
+    const flatten = (arr) => {
+        if (!arr) return new Float32Array(0);
+        if (Array.isArray(arr[0]) || arr[0] instanceof Float32Array) {
+            return new Float32Array(arr.flat());
+        }
+        return new Float32Array(arr);
+    };
+
+    const weights = [
+        flatten(mlpObj.w1), flatten(mlpObj.b1),
+        flatten(mlpObj.w2), flatten(mlpObj.b2),
+        flatten(embedObj.tokenEmbed)
+    ];
+
+    const totalLength = weights.reduce((acc, w) => acc + w.length, 0);
+    const weightsBinary = new Float32Array(totalLength);
+    let offset = 0;
+    weights.forEach(w => {
+        weightsBinary.set(w, offset);
+        offset += w.length;
+    });
+    const finalPackage = {
+        meta: modelData,
+        weights: Array.from(weightsBinary)
+    };
+
+    const blob = new Blob([JSON.stringify(finalPackage)], { type: 'application/json' });
+    console.log(JSON.stringify(finalPackage).slice(0, 200))
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name + '.airbin';
+    a.click();
   }
-  console.log("Vocab Size:", vocabSize)
-  const embed = new EmbeddingLayer(vocabSize, EmbedSize);
-  const mlp = new MLP(EmbedSize, hiddenSize, vocabSize);
-  await TrainModel(device, mlp, embed, nlp, data, numMerges, epochs, lr, 64);
-  return { mlp, nlp, embed };
+
+  async loadModel(file) {
+    try {
+      const response = await fetch(file);
+      const packageData = await response.json();
+      const { meta, weights } = packageData;
+      const data = new Float32Array(weights);
+      let offset = 0;
+      const { embedSize, hiddenSize, vocabSize } = meta.config;
+      const nlp = new NLP();
+      nlp.tokenToId = meta.nlp.tokenToId;
+      nlp.idToToken = meta.nlp.idToToken;
+      nlp.merges = meta.nlp.merges;
+      const mlp = new MLP(embedSize, hiddenSize, vocabSize);
+      mlp.w1 = [];
+      for (let i = 0; i < hiddenSize; i++) {
+        mlp.w1.push(data.slice(offset, offset + embedSize));
+        offset += embedSize;
+      }
+      mlp.b1 = Array.from(data.slice(offset, offset + hiddenSize));
+      offset += hiddenSize;
+      mlp.w2 = [];
+      for (let i = 0; i < vocabSize; i++) {
+        mlp.w2.push(data.slice(offset, offset + hiddenSize));
+        offset += hiddenSize;
+      }
+      mlp.b2 = Array.from(data.slice(offset, offset + vocabSize));
+      offset += vocabSize;
+      const embed = new EmbeddingLayer(vocabSize, embedSize);
+      embed.tokenEmbed = [];
+      for (let i = 0; i < vocabSize; i++) {
+        embed.tokenEmbed.push(Array.from(data.slice(offset, offset + embedSize)));
+        offset += embedSize;
+      }
+      console.log("load",mlp)
+      return { mlp, nlp, embed,embedSize, config: meta.config };
+
+    } catch (e) {
+      console.error("Model load error:", e);
+    }
+  }
 }
 
-
-
-(async () => {
-  const device = await ensureGPU();
-  const embedSize = 128
-  const hiddenSize = 256
-  const trainedModel = await StartModel("http://127.0.0.1:5500/datasets/en_daily_dialog_ds.txt", 500, embedSize, hiddenSize, 3, 0.0003);
-  const usrprompt = "Hello";
-  debug = false
-  const mha = new MHA(device,embedSize,3)
-  const layernorm = new LayerNorm(embedSize)
-  const response = await generateReply(
-    mha,
-    trainedModel.mlp, 
-    layernorm, 
-    trainedModel.nlp, 
-    trainedModel.embed, 
-    usrprompt
-  );
-  
-  console.log("Aira:", response);
-
-})();
 
 
